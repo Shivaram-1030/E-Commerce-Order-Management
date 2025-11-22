@@ -1,0 +1,80 @@
+-- Create database (MySQL style)
+CREATE DATABASE ecommerce_db;
+USE ecommerce_db;
+
+-- Categories
+CREATE TABLE category (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    UNIQUE (name)
+);
+
+-- Products
+CREATE TABLE product (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    sku VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    category_id INT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES category(category_id)
+);
+
+-- Inventory
+CREATE TABLE inventory (
+    product_id INT PRIMARY KEY,
+    quantity INT NOT NULL DEFAULT 0,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES product(product_id)
+);
+
+-- Customers
+CREATE TABLE customer (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100),
+    email VARCHAR(150) UNIQUE NOT NULL,
+    phone VARCHAR(20),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Orders
+CREATE TABLE orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    order_status VARCHAR(30) NOT NULL DEFAULT 'PENDING', -- PENDING, CONFIRMED, SHIPPED, CANCELLED
+    order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    total_amount DECIMAL(12,2) DEFAULT 0,
+    shipping_address VARCHAR(255),
+    FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
+);
+
+-- Order Items
+CREATE TABLE order_item (
+    order_item_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    subtotal DECIMAL(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES product(product_id)
+);
+
+-- Payments
+CREATE TABLE payment (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    amount DECIMAL(12,2) NOT NULL,
+    payment_method VARCHAR(50), -- CARD, UPI, WALLET, COD
+    payment_status VARCHAR(30) DEFAULT 'COMPLETED',
+    FOREIGN KEY (order_id) REFERENCES orders(order_id)
+);
+
+-- Indexes for faster reporting
+CREATE INDEX idx_order_date ON orders(order_date);
+CREATE INDEX idx_product_category ON product(category_id);
+CREATE INDEX idx_inventory_quantity ON inventory(quantity);
