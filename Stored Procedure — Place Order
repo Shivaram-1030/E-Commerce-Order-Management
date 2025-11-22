@@ -1,0 +1,62 @@
+DELIMITER //
+CREATE PROCEDURE place_order (
+    IN p_customer_id INT,
+    IN p_shipping_address VARCHAR(255),
+    IN p_items JSON, -- JSON array of {"product_id":1,"quantity":2,"unit_price":9.99}
+    IN p_payment_method VARCHAR(50)
+)
+BEGIN
+    DECLARE v_order_id INT;
+    DECLARE v_total DECIMAL(12,2) DEFAULT 0.00;
+    DECLARE i INT DEFAULT 0;
+    DECLARE n INT;
+
+    -- Start transaction
+    START TRANSACTION;
+
+    -- Create order
+    INSERT INTO orders (customer_id, order_status, shipping_address, total_amount)
+    VALUES (p_customer_id, 'PENDING', p_shipping_address, 0);
+    SET v_order_id = LAST_INSERT_ID();
+
+    -- loop through JSON array
+    SET n = JSON_LENGTH(p_items);
+
+    WHILE i < n DO
+        DECLARE p_product_id INT;
+        DECLARE p_quantity INT;
+        DECLARE p_unit_price DECIMAL(10,2);
+
+        SET p_product_id = JSON_EXTRACT(p_items, CONCAT('$[', i, '].product_id'));
+        SET p_quantity   = JSON_EXTRACT(p_items, CONCAT('$[', i, '].quantity'));
+        SET p_unit_price = JSON_EXTRACT(p_items, CONCAT('$[', i, '].unit_price'));
+
+        -- Insert item
+        INSERT INTO order_item (order_id, product_id, quantity, unit_price)
+        VALUES (v_order_id, p_product_id, p_quantity, p_unit_price);
+
+        -- Update total
+        SET v_total = v_total + (p_quantity * p_unit_price);
+
+        -- Reduce inventory (check)
+        UPDATE inventory
+        SET quantity = quantity - p_quantity, last_updated = NOW()
+        WHERE product_id = p_product_id;
+
+        IF (SELECT quantity FROM inventory WHERE product_id = p_product_id) < 0 THEN
+            ROLLBACK;
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = CONCAT('Insufficient stock for product id ', p_product_id);
+        END IF;
+
+        SET i = i + 1;
+    END WHILE;
+
+    -- Update order total
+    UPDATE orders SET total_amount = v_total, order_status = 'CONFIRMED' WHERE order_id = v_order_id;
+
+    -- Insert payment record (for simplicity assume full payment)
+    INSERT INTO payment (order_id, amount, payment_method, payment_status) VALUES (v_order_id, v_total, p_payment_method, 'COMPLETED');
+
+    COMMIT;
+END//
+DELIMITER ;
