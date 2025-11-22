@@ -1,0 +1,39 @@
+-- Categories
+INSERT INTO category (name, description) VALUES
+('Electronics','Phones, laptops, accessories'),
+('Books','All kinds of books'),
+('Home','Home & Kitchen');
+
+-- Products
+INSERT INTO product (sku, name, description, price, category_id) VALUES
+('SKU-1001','Smartphone A','Android phone 6GB RAM',999.00,1),
+('SKU-1002','Laptop B','14 inch laptop, i5',559.00,1),
+('SKU-2001','Learning SQL','Beginner SQL book',29.99,2),
+('SKU-3001','Blender X','500W blender',49.50,3);
+
+-- Inventory
+INSERT INTO inventory (product_id, quantity) VALUES
+(1, 50),
+(2, 20),
+(3, 200),
+(4, 35);
+
+-- Customers
+INSERT INTO customer (first_name, last_name, email, phone) VALUES
+('Mennurla','Shiva Ram','shivaram@example.com','9998887776'),
+('Anita','Rao','anita.rao@example.com','8887776665');
+
+-- Orders & items (example order)
+INSERT INTO orders (customer_id, order_status, shipping_address, total_amount)
+VALUES (1, 'CONFIRMED', '12 MG Road, Bangalore, India', 1028.99);
+
+-- Suppose order_id = 1
+INSERT INTO order_item (order_id, product_id, quantity, unit_price)
+VALUES (1, 1, 1, 999.00),
+       (1, 3, 1, 29.99);
+
+-- Update orders.total_amount (or use trigger/procedure to set)
+UPDATE orders SET total_amount = (SELECT SUM(subtotal) FROM order_item WHERE order_item.order_id = orders.order_id) WHERE order_id = 1;
+
+-- Payment
+INSERT INTO payment (order_id, amount, payment_method) VALUES (1, 1028.99, 'CARD');
